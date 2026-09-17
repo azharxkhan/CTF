@@ -13,13 +13,21 @@ echo "== Installing toolkit and light desktop =="
 apt-get update
 apt-get install -y --no-install-recommends \
   xfce4 xfce4-terminal firefox-esr \
-  nmap netcat-openbsd curl jq git \
-  john hashcat exiftool binutils file \
+  nmap netcat-openbsd curl wget jq git \
+  john hashcat exiftool binutils file openssl tcpdump \
+  ffuf gobuster wfuzz sqlmap wordlists \
+  sqlite3 \
   python3 python3-pip micro \
   xrdp                                   # RDP endpoint that Guacamole connects to
 
 # hashid + jwt_tool via pip (do this now, while internet is still allowed)
 pip3 install --no-cache-dir hashid jwt_tool || true
+
+# NOTE: on plain Ubuntu, some tools above (ffuf, gobuster, wfuzz, sqlmap, wordlists) are not
+# in the default repos. Either use a Kali-based image (they're preinstalled), enable the Kali
+# repo, or install per-tool: sqlmap via pip (`pip3 install sqlmap`), ffuf/gobuster via `go install`
+# or GitHub releases, wordlists from the seclists package. Do ALL of this pre-lockdown.
+# Confirm each is on PATH before the event: for t in nmap sqlmap ffuf gobuster jwt_tool john; do command -v $t || echo "MISSING: $t"; done
 
 # Local rockyou for W3 / C8 (ship it with the repo or fetch here pre-lockdown)
 if [[ ! -f /usr/share/wordlists/rockyou.txt ]]; then
