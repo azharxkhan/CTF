@@ -1,0 +1,25 @@
+{
+  "//": "Locks Firefox on the player host. Even with the network firewall as the real",
+  "//2": "boundary, this stops accidental navigation and removes AI/sync surface.",
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxAccounts": true,
+    "DisableFirefoxStudies": true,
+    "DisablePocket": true,
+    "DisableFormHistory": true,
+    "OfferToSaveLogins": false,
+    "Preferences": {
+      "browser.newtabpage.enabled": false,
+      "browser.startup.homepage": "http://ctfd.internal:8000"
+    },
+    "WebsiteFilter": {
+      "//": "Block everything, then allow only internal CTF hosts.",
+      "Block": ["<all_urls>"],
+      "Exceptions": [
+        "http://ctfd.internal:8000/*",
+        "http://*.internal/*",
+        "http://10.10.0.0/16/*"
+      ]
+    }
+  }
+}

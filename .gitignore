@@ -1,0 +1,35 @@
+# Secrets — never commit
+.env
+*.env
+appsettings.*.json
+!appsettings.Example.json
+secrets/
+*.pfx
+*.key
+
+# Admin-only content must never reach a player-visible branch
+docs/CHALLENGES.md
+
+# Not tracking markdown docs or any Claude/assistant files in this repo
+*.md
+CLAUDE.md
+.claude/
+**/.claude/
+
+# .NET
+bin/
+obj/
+*.user
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+
+# Guacamole / DB volumes
+guacamole/db-data/
+ctfd/.data/
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,5 @@
+# One username per line. Lines starting with # are ignored.
+# provision.sh creates an isolated, no-sudo account per name.
+# player01
+# player02
+# player03
