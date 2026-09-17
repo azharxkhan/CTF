@@ -48,14 +48,18 @@ public static class Seeder
         db.Products.AddRange(products);
         db.SaveChanges();
 
-        // --- Invoices: the ADMIN's invoice Notes carries the IDOR flag (challenge 2) ---
-        var idorFlag = Env("FLAG_C2_IDOR", "flag{missing_env_c2}");
+        // --- Invoices (benign notes) ---
+        // NOTE: the challenge-2 (IDOR) flag is deliberately NOT seeded here. Because
+        // challenge-1's SQL injection can `UNION SELECT ... FROM Invoices`, any flag in this
+        // database is extractable by C1 and would leak across challenges. See the
+        // per-challenge-database isolation decision in docs/plan/C-challenges.md. C2 gets its
+        // own isolated database when it's built.
         var normal = users.Where(u => !u.IsAdmin).ToList();
         var invoices = new List<Invoice>
         {
             new() { OwnerId = normal[0].Id, Amount = 120.00m, Notes = "Q1 order" },
             new() { OwnerId = normal[1].Id, Amount = 45.50m,  Notes = "replacement parts" },
-            new() { OwnerId = admin.Id,     Amount = 8800.00m, Notes = $"admin only: {idorFlag}" },
+            new() { OwnerId = admin.Id,     Amount = 8800.00m, Notes = "admin: quarterly summary" },
             new() { OwnerId = normal[2].Id, Amount = 15.00m,  Notes = "sample" },
             new() { OwnerId = normal[0].Id, Amount = 210.75m, Notes = "bulk widgets" },
         };
@@ -72,11 +76,11 @@ public static class Seeder
             new Comment { AuthorId = normal[0].Id, Body = "Great product, fast shipping." },
             new Comment { AuthorId = normal[1].Id, Body = "Does this come in blue?" });
 
-        // --- Flags reachable via SQL injection (challenges 1, 4, 10) — from env ---
-        db.Flags.AddRange(
-            new Flag { Name = "search",    Secret = Env("FLAG_C1_SQLI",      "flag{missing_env_c1}") },
-            new Flag { Name = "orders_ref", Secret = Env("FLAG_C4_FROMSQLRAW", "flag{missing_env_c4}") },
-            new Flag { Name = "status",    Secret = Env("FLAG_C10_BLINDSQLI", "flag{missing_env_c10}") });
+        // --- Flags reachable via SQL injection — ONLY challenge 1 lives in this database ---
+        // Challenges 4 and 10 (also SQLi) must use their OWN databases, or C1's UNION would
+        // dump their flags too. This DB therefore contains exactly one extractable secret.
+        db.Flags.Add(
+            new Flag { Name = "search", Secret = Env("FLAG_C1_SQLI", "flag{missing_env_c1}") });
 
         db.SaveChanges();
     }

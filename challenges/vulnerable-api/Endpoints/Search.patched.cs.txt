@@ -1,0 +1,27 @@
+// CHALLENGE 1 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// A player's patch earns the flag if it achieves the same thing: the user's input is a
+// bound PARAMETER, never part of the SQL text. Any of these approaches is acceptable.
+
+// --- Option A: parameterized raw ADO.NET (closest to the vulnerable code) ---
+var sql = "SELECT Id, Name FROM Products WHERE Name = @name";
+using var conn = new SqlConnection(cs);
+conn.Open();
+using var cmd = new SqlCommand(sql, conn);
+cmd.Parameters.AddWithValue("@name", q);      // q travels as data, never as SQL
+using var reader = cmd.ExecuteReader();
+// ... read Id, Name ...
+
+// --- Option B: EF Core LINQ (parameterizes automatically) ---
+// var results = context.Products
+//     .Where(p => p.Name == q)
+//     .Select(p => new { p.Id, p.Name })
+//     .ToList();
+
+// --- Option C: EF Core FromSql (interpolation IS parameterized here, unlike FromSqlRaw) ---
+// var results = context.Products
+//     .FromSql($"SELECT * FROM Products WHERE Name = {q}")
+//     .Select(p => new { p.Id, p.Name })
+//     .ToList();
+
+// Rubric: no string concatenation, no FromSqlRaw($"..."); ' OR 1=1 -- and the UNION payload
+// return nothing unexpected; q = "Widget" still returns Widget; no blocklist hacks.

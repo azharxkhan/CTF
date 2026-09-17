@@ -17,7 +17,7 @@ apt-get install -y --no-install-recommends \
   john hashcat exiftool binutils file openssl tcpdump \
   ffuf gobuster wfuzz sqlmap wordlists \
   sqlite3 \
-  python3 python3-pip micro \
+  python3 python3-pip python3-tk micro \
   xrdp                                   # RDP endpoint that Guacamole connects to
 
 # hashid + jwt_tool via pip (do this now, while internet is still allowed)

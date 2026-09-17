@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VulnApi.Data;
+using VulnApi.Endpoints;
 
 // Minimal host for now: wires the DbContext and seeds the database. Challenge endpoints
 // (1,2,4,5,7,8,9,10) will be added under Endpoints/ as they're built.
@@ -33,6 +34,12 @@ using (var scope = app.Services.CreateScope())
     Seeder.Seed(db);
 }
 
-app.MapGet("/", () => "VulnApi up. Challenge endpoints are added under /api/* as they're built.");
+// Serve the browser search bar (wwwroot/index.html) so players can inject in the browser,
+// with curl / sqlmap as the harder alternatives against the same /api/search endpoint.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+// Challenge endpoints
+app.MapSearch();   // Challenge 1 — SQL injection
 
 app.Run();

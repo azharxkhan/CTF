@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Flag
+Comment=Submit a CTF flag
+Exec=python3 /opt/ctf/flag-app/flag.py
+Icon=emblem-favorite
+Terminal=false
+Categories=Utility;
