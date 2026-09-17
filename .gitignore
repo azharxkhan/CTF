@@ -30,6 +30,11 @@ dist/
 guacamole/db-data/
 ctfd/.data/
 
+# Generated database artifacts (built from schema.sql + seed.sql)
+*.seed.db
+playground.db
+*.work.db
+
 # OS
 Thumbs.db
 .DS_Store
