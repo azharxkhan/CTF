@@ -3,13 +3,14 @@
 // bound PARAMETER, never part of the SQL text. Any of these approaches is acceptable.
 
 // --- Option A: parameterized raw ADO.NET (closest to the vulnerable code) ---
-var sql = "SELECT Id, Name FROM Products WHERE Name = @name";
+// Put the % wildcards on the PARAMETER VALUE, not in the SQL text.
+var sql = "SELECT Sku, Name, Category, Price FROM Products WHERE Name LIKE @name";
 using var conn = new SqlConnection(cs);
 conn.Open();
 using var cmd = new SqlCommand(sql, conn);
-cmd.Parameters.AddWithValue("@name", q);      // q travels as data, never as SQL
+cmd.Parameters.AddWithValue("@name", "%" + q + "%");   // q travels as data, never as SQL
 using var reader = cmd.ExecuteReader();
-// ... read Id, Name ...
+// ... read Sku, Name, Category, Price ...
 
 // --- Option B: EF Core LINQ (parameterizes automatically) ---
 // var results = context.Products

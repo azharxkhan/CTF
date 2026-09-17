@@ -33,17 +33,19 @@ public static class Seeder
         db.Users.AddRange(users);
         db.SaveChanges();   // assigns Ids
 
-        // --- Products (SQLi search target) ---
+        // --- Products (SQLi search target) — realistic catalogue rows ---
         var products = new List<Product>
         {
-            new() { Name = "Widget",         Price = 9.99m,   Stock = 120 },
-            new() { Name = "Gadget",         Price = 19.50m,  Stock = 80 },
-            new() { Name = "Sprocket",       Price = 4.25m,   Stock = 500 },
-            new() { Name = "Cog",            Price = 2.10m,   Stock = 1000 },
-            new() { Name = "Flux Capacitor", Price = 999.00m, Stock = 3 },
-            new() { Name = "Bracket",        Price = 6.75m,   Stock = 240 },
-            new() { Name = "Grommet",        Price = 1.15m,   Stock = 1500 },
-            new() { Name = "Widget Pro",     Price = 14.99m,  Stock = 60 },
+            new() { Sku = "WID-0001", Name = "Widget",          Category = "Fasteners",  Price = 9.99m,   Stock = 120,  Description = "Standard 8mm zinc-plated widget." },
+            new() { Sku = "WID-0002", Name = "Widget Pro",      Category = "Fasteners",  Price = 14.99m,  Stock = 60,   Description = "Hardened widget, higher shear rating." },
+            new() { Sku = "GAD-0100", Name = "Gadget",          Category = "Assemblies", Price = 19.50m,  Stock = 80,   Description = "Multi-purpose gadget, boxed." },
+            new() { Sku = "SPR-0210", Name = "Sprocket 12T",    Category = "Drivetrain", Price = 4.25m,   Stock = 500,  Description = "12-tooth steel sprocket." },
+            new() { Sku = "SPR-0220", Name = "Sprocket 16T",    Category = "Drivetrain", Price = 5.10m,   Stock = 320,  Description = "16-tooth steel sprocket." },
+            new() { Sku = "COG-0050", Name = "Cog",             Category = "Drivetrain", Price = 2.10m,   Stock = 1000, Description = "Generic replacement cog." },
+            new() { Sku = "FLX-9000", Name = "Flux Capacitor",  Category = "Specialty",  Price = 999.00m, Stock = 3,    Description = "Handle with care. Requires 1.21 GW." },
+            new() { Sku = "BRK-0303", Name = "Bracket",         Category = "Mounting",   Price = 6.75m,   Stock = 240,  Description = "L-bracket, powder-coated." },
+            new() { Sku = "GRM-0007", Name = "Grommet",         Category = "Seals",      Price = 1.15m,   Stock = 1500, Description = "Rubber grommet, 10mm." },
+            new() { Sku = "WSH-0011", Name = "Washer Pack",     Category = "Fasteners",  Price = 3.40m,   Stock = 880,  Description = "Assorted washers, 100pc." },
         };
         db.Products.AddRange(products);
         db.SaveChanges();

@@ -3,46 +3,109 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Product Search</title>
+  <title>Acme Parts — Inventory Search</title>
   <style>
-    body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; }
-    h1 { font-size: 1.4rem; }
-    .bar { display: flex; gap: 8px; margin: 16px 0; }
-    input { flex: 1; padding: 10px; font-size: 1rem; border: 1px solid #bbb; border-radius: 6px; }
-    button { padding: 10px 16px; font-size: 1rem; border: 0; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
-    .hint { color: #666; font-size: .9rem; }
-    pre { background: #f3f4f6; padding: 8px; border-radius: 6px; overflow-x: auto; }
+    :root {
+      --bg: #f4f6f8; --panel: #ffffff; --ink: #1f2933; --muted: #6b7280;
+      --line: #e5e7eb; --brand: #0f766e; --brand-ink: #ffffff; --accent: #0e7490;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f1419; --panel: #1a2029; --ink: #e6edf3; --muted: #9aa5b1;
+        --line: #2a323d; --brand: #14b8a6; --brand-ink: #06241f; --accent: #22d3ee;
+        --shadow: 0 1px 3px rgba(0,0,0,.4);
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    header { background: var(--brand); color: var(--brand-ink); padding: 14px 20px;
+      display: flex; align-items: center; gap: 12px; }
+    header .logo { width: 26px; height: 26px; border-radius: 6px; background: var(--brand-ink);
+      color: var(--brand); display: grid; place-items: center; font-weight: 800; }
+    header h1 { font-size: 1rem; margin: 0; font-weight: 600; letter-spacing: .2px; }
+    header .env { margin-left: auto; font-size: .72rem; opacity: .85;
+      border: 1px solid rgba(255,255,255,.4); padding: 2px 8px; border-radius: 999px; }
+    main { max-width: 900px; margin: 24px auto; padding: 0 20px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      box-shadow: var(--shadow); padding: 20px; }
+    h2 { margin: 0 0 4px; font-size: 1.15rem; }
+    .sub { color: var(--muted); font-size: .85rem; margin: 0 0 16px; }
+    .sub code { background: rgba(125,125,125,.14); padding: 1px 6px; border-radius: 4px; }
+    .bar { display: flex; gap: 10px; }
+    input { flex: 1; padding: 11px 13px; font-size: 1rem; color: var(--ink);
+      background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+    input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+    button { padding: 11px 20px; font-size: 1rem; font-weight: 600; border: 0;
+      border-radius: 8px; background: var(--brand); color: var(--brand-ink); cursor: pointer; }
+    button:hover { filter: brightness(1.05); }
+    .meta { color: var(--muted); font-size: .8rem; margin: 14px 2px 6px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line);
+      font-size: .9rem; }
+    th { color: var(--muted); font-weight: 600; font-size: .72rem; text-transform: uppercase;
+      letter-spacing: .5px; }
+    td.sku { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+    td.price { text-align: right; font-variant-numeric: tabular-nums; }
+    .empty { color: var(--muted); padding: 18px 2px; }
+    .err { color: #b91c1c; background: rgba(185,28,28,.08); padding: 10px 12px;
+      border-radius: 8px; font-family: ui-monospace, monospace; font-size: .82rem;
+      white-space: pre-wrap; }
+    footer { max-width: 900px; margin: 12px auto 40px; padding: 0 20px; color: var(--muted);
+      font-size: .78rem; }
   </style>
 </head>
 <body>
-  <h1>Product Search</h1>
-  <p class="hint">Search our catalogue. (Marketing swears the API is fine.) You can also hit
-    it directly: <code>GET /api/search?q=...</code></p>
+  <header>
+    <span class="logo">A</span>
+    <h1>Acme Parts · Inventory</h1>
+    <span class="env">internal tool</span>
+  </header>
 
-  <div class="bar">
-    <input id="q" placeholder="Search products, e.g. Widget" autofocus>
-    <button onclick="run()">Search</button>
-  </div>
+  <main>
+    <div class="card">
+      <h2>Product search</h2>
+      <p class="sub">Search the parts catalogue by name. Public API:
+        <code>GET /api/search?q=…</code></p>
 
-  <div id="out"></div>
+      <div class="bar">
+        <input id="q" placeholder="Search parts, e.g. Widget or Sprocket" autofocus>
+        <button onclick="run()">Search</button>
+      </div>
+
+      <div id="out"></div>
+    </div>
+  </main>
+
+  <footer>Acme Parts internal inventory tool · build 2.3.1 · for staff use only</footer>
 
   <script>
+    const out = document.getElementById('out');
     async function run() {
       const q = document.getElementById('q').value;
-      const out = document.getElementById('out');
+      out.innerHTML = '<p class="meta">Searching…</p>';
       try {
         const res = await fetch('/api/search?q=' + encodeURIComponent(q));
         const rows = await res.json();
-        if (!Array.isArray(rows) || rows.length === 0) { out.innerHTML = '<p>No results.</p>'; return; }
-        out.innerHTML = '<table><tr><th>Id</th><th>Name</th></tr>' +
-          rows.map(r => `<tr><td>${r.id}</td><td>${r.name ?? ''}</td></tr>`).join('') +
-          '</table>';
+        if (!Array.isArray(rows) || rows.length === 0) {
+          out.innerHTML = '<p class="empty">No parts match that search.</p>'; return;
+        }
+        const body = rows.map(r => `<tr>
+            <td class="sku">${esc(r.sku)}</td>
+            <td>${esc(r.name)}</td>
+            <td>${esc(r.category)}</td>
+            <td class="price">${r.price == null ? '' : '$' + Number(r.price).toFixed(2)}</td>
+          </tr>`).join('');
+        out.innerHTML = `<p class="meta">${rows.length} result${rows.length === 1 ? '' : 's'}</p>
+          <table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th></tr></thead>
+          <tbody>${body}</tbody></table>`;
       } catch (e) {
-        out.innerHTML = '<pre>' + (e && e.message ? e.message : e) + '</pre>';
+        out.innerHTML = '<div class="err">' + esc(e && e.message ? e.message : String(e)) + '</div>';
       }
     }
+    function esc(s) { return (s == null ? '' : String(s))
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
     document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
   </script>
 </body>

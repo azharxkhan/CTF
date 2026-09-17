@@ -19,9 +19,12 @@ public static class SearchEndpoint
                      ?? Environment.GetEnvironmentVariable("ConnectionStrings__Default")!;
 
             // VULNERABLE: the caller's input is concatenated straight into the SQL text.
-            //   q = ' OR 1=1 --                        -> returns every product
-            //   q = ' UNION SELECT Id, Secret FROM Flags --   -> leaks the Flags table
-            var sql = "SELECT Id, Name FROM Products WHERE Name = '" + q + "'";
+            // A real-looking catalogue search (LIKE over 4 columns). The app wraps the input
+            // in %...%' — so an injected ' leaves the trailing %' dangling (comment it with --).
+            //   q = ' OR 1=1 --                                   -> every product
+            //   q = ' UNION SELECT NULL, name, NULL, NULL FROM sys.tables --   -> enumerate tables
+            //   q = ' UNION SELECT NULL, Secret, NULL, NULL FROM Flags --      -> exfiltrate
+            var sql = "SELECT Sku, Name, Category, Price FROM Products WHERE Name LIKE '%" + q + "%'";
 
             var results = new List<object>();
             using var conn = new SqlConnection(cs);
@@ -30,7 +33,13 @@ public static class SearchEndpoint
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                results.Add(new { id = reader.GetValue(0), name = reader.GetValue(1)?.ToString() });
+                results.Add(new
+                {
+                    sku = reader.GetValue(0)?.ToString(),
+                    name = reader.GetValue(1)?.ToString(),
+                    category = reader.GetValue(2)?.ToString(),
+                    price = reader.GetValue(3) is decimal d ? d : (decimal?)null
+                });
             }
             return Results.Ok(results);
         });
