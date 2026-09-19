@@ -1,0 +1,27 @@
+# Challenge 6 image: build the React board, then the .NET API, and serve the board at /board.
+# Build context is ./challenges (so both vulnerable-web and vulnerable-api are reachable).
+
+# 1) Build the React board (output to /web/dist; base '/board/' comes from vite.config).
+FROM node:20 AS web
+WORKDIR /web
+COPY vulnerable-web/package*.json ./
+RUN npm ci
+COPY vulnerable-web/ ./
+RUN npm run build -- --outDir dist --emptyOutDir
+
+# 2) Publish the .NET API.
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY vulnerable-api/VulnApi.csproj .
+RUN dotnet restore
+COPY vulnerable-api/ .
+RUN dotnet publish -c Release -o /app --no-restore
+
+# 3) Runtime: API + built board.
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+COPY --from=build /app .
+COPY --from=web /web/dist ./wwwroot/board
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "VulnApi.dll"]

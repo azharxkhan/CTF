@@ -1,22 +1,31 @@
-# Internal CTF — CTFd + vulnerable apps + Guacamole gateway.
-# One `docker compose up -d`. Flags come from .env (never baked into images).
+# Internal CTF — Season 1 deployment.
+# CTFd + one vulnerable-api instance per challenge (own DB, own flag) + the C6 admin bot +
+# a one-shot git-secret seeder + the Guacamole gateway. `docker compose up -d`.
 #
-# Networks:
-#   ctf-internal  — challenges + CTFd + the player host can reach this. NO internet.
-#   ctf-edge      — only CTFd + Guacamole are exposed here to reach players' browsers.
-# Vulnerable containers sit on ctf-internal with `internal: true` so they cannot egress.
+# Flags come from .env (never baked into images — BUILD.md §6). Challenges sit on an
+# internal-only network with no route to the internet; only CTFd + Guacamole reach the edge.
+#
+# NOTE: authored without a Docker host to test against. Verify with the checklist in
+# docs/operator/DEPLOY.md before a live session.
 
-x-hardening: &hardening
-  read_only: true
+x-vuln-api: &vuln-api
+  build:
+    context: ./challenges/vulnerable-api
+  image: ctf/vuln-api:latest
   security_opt: ["no-new-privileges:true"]
+  read_only: true
+  tmpfs: ["/tmp"]
   deploy:
     resources:
-      limits:
-        cpus: "0.75"
-        memory: 512M
+      limits: { cpus: "0.75", memory: 512M }
+  networks: [ctf-internal]
+  depends_on:
+    vuln-db:
+      condition: service_healthy
+  restart: unless-stopped
 
 services:
-  # ---- Platform ----
+  # ---------- Platform ----------
   ctfd:
     image: ctfd/ctfd:latest
     environment:
@@ -24,6 +33,7 @@ services:
       DATABASE_URL: mysql+pymysql://ctfd:${CTFD_DB_PASSWORD}@ctfd-db/ctfd
     volumes:
       - ./ctfd/plugins:/opt/CTFd/CTFd/plugins/custom:ro
+    ports: ["8000:8000"]      # organizer/player-laptop access to the scoreboard
     networks: [ctf-internal, ctf-edge]
     depends_on: [ctfd-db]
     restart: unless-stopped
@@ -35,29 +45,11 @@ services:
       MARIADB_USER: ctfd
       MARIADB_PASSWORD: ${CTFD_DB_PASSWORD}
       MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    volumes: ["ctfd-db-data:/var/lib/mysql"]
     networks: [ctf-internal]
     restart: unless-stopped
 
-  # ---- Vulnerable apps (challenges 1-9) ----
-  vuln-api:
-    build: ./challenges/vulnerable-api
-    <<: *hardening
-    environment:
-      ConnectionStrings__Default: ${VULN_DB_CONNECTION}
-      FLAG_C1_SQLI: ${FLAG_C1_SQLI}
-      FLAG_C2_IDOR: ${FLAG_C2_IDOR}
-      FLAG_C4_FROMSQLRAW: ${FLAG_C4_FROMSQLRAW}
-      FLAG_C5_MASSASSIGN: ${FLAG_C5_MASSASSIGN}
-      FLAG_C7_PATHTRAVERSAL: ${FLAG_C7_PATHTRAVERSAL}
-      FLAG_C8_WEAKJWT: ${FLAG_C8_WEAKJWT}
-      FLAG_C9_JWTOFF: ${FLAG_C9_JWTOFF}
-      FLAG_C10_BLINDSQLI: ${FLAG_C10_BLINDSQLI}
-      Jwt__Key: ${JWT_WEAK_KEY}
-    tmpfs: ["/tmp"]        # read_only root still needs a writable temp
-    networks: [ctf-internal]
-    depends_on: [vuln-db]
-    restart: unless-stopped
-
+  # ---------- Shared database for the vulnerable APIs ----------
   vuln-db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -66,18 +58,119 @@ services:
     security_opt: ["no-new-privileges:true"]
     deploy:
       resources:
-        limits: { cpus: "1.0", memory: 2G }
+        limits: { cpus: "1.5", memory: 2560M }
+    healthcheck:
+      # Each API waits for this before it seeds. Path is the 2022 image's tools dir.
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
     networks: [ctf-internal]
     restart: unless-stopped
 
-  # ---- Vulnerable frontend (challenges 6, 12) ----
-  vuln-web:
-    build: ./challenges/vulnerable-web
-    <<: *hardening
+  # ---------- One vulnerable-api instance per challenge ----------
+  vuln-c1:                                   # Challenge 1 — SQL injection (UI at /)
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c1
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C1;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C1_SQLI: ${FLAG_C1_SQLI}
+
+  vuln-c2:                                   # Challenge 2 — IDOR (UI at /invoices.html)
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c2
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C2;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C2_IDOR: ${FLAG_C2_IDOR}
+
+  vuln-c7:                                   # Challenge 7 — path traversal (UI at /reports.html)
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c7
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C7;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C7_PATHTRAVERSAL: ${FLAG_C7_PATHTRAVERSAL}
+    tmpfs: ["/tmp", "/app/challenge-data"]   # C7 writes report + flag files at startup
+
+  vuln-c6:                                   # Challenge 6 — stored XSS (React board at /board/)
+    build:
+      context: ./challenges                  # needs both vulnerable-web and vulnerable-api
+      dockerfile: Dockerfile.c6
+    image: ctf/vuln-c6:latest
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    environment:
+      CTF_CHALLENGE: c6
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C6;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C6_XSS: ${FLAG_C6_XSS}
+    deploy:
+      resources:
+        limits: { cpus: "0.75", memory: 512M }
     networks: [ctf-internal]
+    depends_on:
+      vuln-db:
+        condition: service_healthy
     restart: unless-stopped
 
-  # ---- Browser gateway to the player host ----
+  c6-admin-bot:                              # reviews the board so XSS payloads fire
+    build:
+      context: ./challenges/vulnerable-web/admin-bot
+    image: ctf/c6-admin-bot:latest
+    environment:
+      C6_BASE: http://vuln-c6:8080
+      C6_INTERVAL_MS: "15000"
+    networks: [ctf-internal]
+    depends_on: [vuln-c6]
+    restart: unless-stopped
+
+  # ---------- Reverse proxy: exposes the internal-only challenges to players ----------
+  # Challenges sit on ctf-internal (no internet egress). Caddy bridges edge<->internal and
+  # publishes a port per challenge, so players on the internal LAN reach them by host:port
+  # while the challenge containers themselves still cannot phone home.
+  proxy:
+    image: caddy:2
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "5001:5001"   # Challenge 1 — SQL injection
+      - "5002:5002"   # Challenge 2 — IDOR
+      - "5003:5003"   # Challenge 7 — path traversal
+      - "5006:5006"   # Challenge 6 — stored XSS
+    networks: [ctf-internal, ctf-edge]
+    depends_on: [vuln-c1, vuln-c2, vuln-c6, vuln-c7]
+    restart: unless-stopped
+
+  # ---------- Challenge 3 — one-shot: seed the git-secret repo into a shared volume ----------
+  c3-git-secret-seed:
+    image: alpine/git:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["apk add --no-cache bash >/dev/null 2>&1; FLAG_C3_GITSECRET=\"$$FLAG_C3_GITSECRET\" bash /seed/seed-history.sh /out/billing-service && echo seeded"]
+    environment:
+      FLAG_C3_GITSECRET: ${FLAG_C3_GITSECRET}
+    volumes:
+      - ./challenges/git-secret/seed-history.sh:/seed/seed-history.sh:ro
+      - c3-repo:/out
+    networks: [ctf-internal]
+    restart: "no"
+    # After this runs, the seeded repo is in the c3-repo volume; the player host serves it
+    # read-only to players (see docs/operator/DEPLOY.md). No long-running service needed.
+
+  # ---------- Warm-up W1 — port recon (raw TCP banners; published for nmap) ----------
+  warmup-w1:
+    image: python:3.12-alpine
+    command: ["python", "/app/listener.py"]
+    environment:
+      FLAG_W1_PORTRECON: ${FLAG_W1_PORTRECON}
+    volumes:
+      - ./challenges/warmups/W1-port-recon/listener.py:/app/listener.py:ro
+    ports: ["47001:47001", "47002:47002", "48219:48219", "49500:49500"]
+    networks: [ctf-edge]
+    restart: unless-stopped
+  # W2/W3/W4 are static artifacts: build with each build.py and hand the files to players on
+  # the player host (see docs/operator/DEPLOY.md). No service needed.
+
+  # ---------- Browser gateway to the player host ----------
   guacd:
     image: guacamole/guacd:1.5.5
     networks: [ctf-internal]
@@ -91,8 +184,7 @@ services:
       MYSQL_DATABASE: guacamole
       MYSQL_USER: guacamole
       MYSQL_PASSWORD: ${GUAC_DB_PASSWORD}
-      # Clipboard + file transfer are disabled per-connection in the Guac config,
-      # see guacamole/README.md. Session recording is enabled there too.
+    ports: ["8080:8080"]
     networks: [ctf-internal, ctf-edge]
     depends_on: [guacd, guac-db]
     restart: unless-stopped
@@ -104,8 +196,7 @@ services:
       MARIADB_USER: guacamole
       MARIADB_PASSWORD: ${GUAC_DB_PASSWORD}
       MARIADB_RANDOM_ROOT_PASSWORD: "yes"
-    volumes:
-      - ./guacamole/db-data:/var/lib/mysql
+    volumes: ["guac-db-data:/var/lib/mysql"]
     networks: [ctf-internal]
     restart: unless-stopped
 
@@ -114,3 +205,8 @@ networks:
     internal: true      # NO route to the internet for anything on this network
   ctf-edge:
     driver: bridge
+
+volumes:
+  ctfd-db-data:
+  guac-db-data:
+  c3-repo:

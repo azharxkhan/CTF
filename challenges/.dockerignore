@@ -1,0 +1,10 @@
+**/node_modules
+**/bin
+**/obj
+vulnerable-api/wwwroot/board
+**/challenge-data
+git-secret/repo
+static/**/challenge.txt
+static/**/hashes.txt
+static/**/*.bin
+static/**/*.dat

@@ -1,0 +1,19 @@
+# Exposes each internal-only challenge on its own port. Players reach http://<host>:<port>.
+# The challenge containers stay on ctf-internal with no internet egress; only this proxy
+# bridges to the edge.
+
+:5001 {
+	reverse_proxy vuln-c1:8080
+}
+
+:5002 {
+	reverse_proxy vuln-c2:8080
+}
+
+:5003 {
+	reverse_proxy vuln-c7:8080
+}
+
+:5006 {
+	reverse_proxy vuln-c6:8080
+}
