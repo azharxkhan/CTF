@@ -54,3 +54,6 @@ challenges/static/W2-encoding-chain/challenge.txt
 challenges/static/W3-weak-hash/hashes.txt
 challenges/static/W4-hidden-file/*.bin
 challenges/static/W4-hidden-file/*.dat
+
+# Built React board (Vite output)
+challenges/vulnerable-api/wwwroot/board/

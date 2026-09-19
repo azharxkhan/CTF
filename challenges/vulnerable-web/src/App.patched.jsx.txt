@@ -1,0 +1,21 @@
+// CHALLENGE 6 — SECURE reference (reviewer's answer key). NOT built into the app.
+// The fix: don't hand user input to dangerouslySetInnerHTML. React escapes text by default.
+
+// --- Option A (best): render as text. React escapes it; <img onerror> becomes harmless text.
+<li key={c.id}>
+  <div>{c.body}</div>
+</li>
+
+// --- Option B: if you genuinely need to allow *some* HTML, sanitise first with DOMPurify.
+// import DOMPurify from "dompurify";
+<li key={c.id}>
+  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(c.body) }} />
+</li>
+
+// Rubric to earn the patch flag:
+//  [ ] User comment content is no longer passed raw to dangerouslySetInnerHTML.
+//  [ ] Either rendered as text ({c.body}) or sanitised (DOMPurify) before any HTML render.
+//  [ ] A payload like <img src=x onerror=fetch(...)> no longer executes when viewed.
+//  [ ] Normal comments still display.
+//  [ ] (Understanding) can explain that React escapes by default and dangerouslySetInnerHTML
+//      is the explicit opt-out of that safety.
