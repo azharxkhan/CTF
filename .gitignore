@@ -45,3 +45,6 @@ __pycache__/
 
 # Runtime challenge data (report files, flag files)
 challenge-data/
+
+# Generated git-secret challenge repo
+challenges/git-secret/repo/
