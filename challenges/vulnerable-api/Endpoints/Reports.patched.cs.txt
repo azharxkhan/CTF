@@ -1,0 +1,31 @@
+// CHALLENGE 7 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// The fix: resolve the full path and confirm it stays INSIDE the reports directory before
+// reading. Reject anything that escapes the root.
+
+app.MapGet("/api/reports/download", (string file) =>
+{
+    var root = Path.GetFullPath(ReportsDir(env));
+
+    // Resolve the requested path to its real, absolute form...
+    var requested = Path.GetFullPath(Path.Combine(root, file));
+
+    // ...then require it to live under the reports root. Path separator guard stops the
+    // "/reports-evil" prefix trick.
+    if (!requested.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        return Results.BadRequest("Invalid file name.");
+
+    if (!File.Exists(requested)) return Results.NotFound();
+    return Results.File(File.ReadAllBytes(requested), "application/octet-stream",
+        Path.GetFileName(requested));
+});
+
+// Also acceptable / complementary:
+//   - Reject input containing "..", "/", "\\", or rooted paths up front.
+//   - Only ever serve from an allow-list of known report names.
+//
+// Rubric to earn the patch flag:
+//  [ ] Resolves the full path (Path.GetFullPath) and confirms it's within the reports root.
+//  [ ] "../flag.txt" and absolute paths are rejected (400/404), not served.
+//  [ ] Legitimate reports still download.
+//  [ ] Not a naive blocklist that only strips the literal string ".." once
+//      (e.g. "....//" would survive a single replace).

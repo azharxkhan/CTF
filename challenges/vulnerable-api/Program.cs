@@ -19,6 +19,13 @@ var app = builder.Build();
 // runs against its own database (Vuln_C1, Vuln_C2, …) so a flag can't leak across them.
 var challenge = Environment.GetEnvironmentVariable("CTF_CHALLENGE") ?? "c1";
 
+// Challenge 7 (path traversal) is file-based: lay down report files + a secret flag file.
+if (challenge == "c7")
+{
+    var c7flag = Environment.GetEnvironmentVariable("FLAG_C7_PATHTRAVERSAL") ?? "flag{missing_env_c7}";
+    ReportsEndpoint.EnsureData(app.Environment, c7flag);
+}
+
 // `dotnet run -- --reseed` drops, recreates, and reseeds, then exits. Used by the hourly
 // reset / operator restore (docs/operator/command-reference.md).
 if (args.Contains("--reseed"))
@@ -46,5 +53,6 @@ app.UseStaticFiles();
 app.MapSearch();     // Challenge 1 — SQL injection
 app.MapAuth();       // shared login (identity for authz challenges)
 app.MapInvoices();   // Challenge 2 — IDOR
+app.MapReports();    // Challenge 7 — path traversal
 
 app.Run();

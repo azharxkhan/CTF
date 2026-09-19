@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acme Parts — Reports</title>
+  <style>
+    :root {
+      --bg: #f4f6f8; --panel: #ffffff; --ink: #1f2933; --muted: #6b7280;
+      --line: #e5e7eb; --brand: #0f766e; --brand-ink: #ffffff; --accent: #0e7490;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f1419; --panel: #1a2029; --ink: #e6edf3; --muted: #9aa5b1;
+        --line: #2a323d; --brand: #14b8a6; --brand-ink: #06241f; --accent: #22d3ee;
+        --shadow: 0 1px 3px rgba(0,0,0,.4);
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    header { background: var(--brand); color: var(--brand-ink); padding: 14px 20px;
+      display: flex; align-items: center; gap: 12px; }
+    header .logo { width: 26px; height: 26px; border-radius: 6px; background: var(--brand-ink);
+      color: var(--brand); display: grid; place-items: center; font-weight: 800; }
+    header h1 { font-size: 1rem; margin: 0; font-weight: 600; }
+    main { max-width: 760px; margin: 24px auto; padding: 0 20px; display: grid; gap: 18px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      box-shadow: var(--shadow); padding: 20px; }
+    h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 0; border-bottom: 1px solid var(--line); }
+    li:last-child { border-bottom: 0; }
+    .fname { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+    label { display: block; font-size: .8rem; color: var(--muted); margin: 0 0 4px; }
+    .row { display: flex; gap: 10px; align-items: end; }
+    .row > div { flex: 1; }
+    input { width: 100%; padding: 10px 12px; font-size: .95rem; color: var(--ink);
+      background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+    input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+    button { padding: 8px 14px; font-size: .9rem; font-weight: 600; border: 0;
+      border-radius: 8px; background: var(--brand); color: var(--brand-ink); cursor: pointer; }
+    button:hover { filter: brightness(1.05); }
+    pre { background: rgba(125,125,125,.1); border-radius: 8px; padding: 12px; margin-top: 12px;
+      white-space: pre-wrap; font-size: .88rem; }
+    .muted { color: var(--muted); font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">A</span>
+    <h1>Acme Parts · Reports</h1>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Available reports</h2>
+      <ul id="list"><li class="muted">Loading…</li></ul>
+    </div>
+
+    <div class="card">
+      <h2>Download a report</h2>
+      <p class="muted" style="margin-top:0">Enter the file name of the report to download.</p>
+      <div class="row">
+        <div><label>File name</label><input id="file" value="2025-q1-summary.txt"></div>
+        <button onclick="download()">Download</button>
+      </div>
+      <div id="viewer"></div>
+    </div>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    async function loadList() {
+      try {
+        const files = await (await fetch('/api/reports')).json();
+        $('list').innerHTML = files.map(f =>
+          `<li><span class="fname">${esc(f)}</span>
+             <button onclick="pick('${esc(f)}')">Download</button></li>`).join('')
+          || '<li class="muted">No reports.</li>';
+      } catch { $('list').innerHTML = '<li class="muted">Could not load reports.</li>'; }
+    }
+    function pick(f){ $('file').value = f; download(); }
+
+    async function download() {
+      const f = $('file').value;
+      const r = await fetch('/api/reports/download?file=' + encodeURIComponent(f));
+      if (r.status === 404) { $('viewer').innerHTML = '<p class="muted">No such file.</p>'; return; }
+      if (!r.ok) { $('viewer').innerHTML = '<p class="muted">Error ' + r.status + '</p>'; return; }
+      const text = await r.text();
+      $('viewer').innerHTML = '<pre>' + esc(text) + '</pre>';
+    }
+    loadList();
+  </script>
+</body>
+</html>

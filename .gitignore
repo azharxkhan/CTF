@@ -42,3 +42,6 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# Runtime challenge data (report files, flag files)
+challenge-data/
