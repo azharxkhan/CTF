@@ -15,14 +15,18 @@ builder.Services.AddDbContext<VulnDbContext>(o => o.UseSqlServer(conn));
 
 var app = builder.Build();
 
+// Which challenge's data this instance holds (per-challenge DB isolation). Each challenge
+// runs against its own database (Vuln_C1, Vuln_C2, …) so a flag can't leak across them.
+var challenge = Environment.GetEnvironmentVariable("CTF_CHALLENGE") ?? "c1";
+
 // `dotnet run -- --reseed` drops, recreates, and reseeds, then exits. Used by the hourly
 // reset / operator restore (docs/operator/command-reference.md).
 if (args.Contains("--reseed"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<VulnDbContext>();
-    Seeder.Reseed(db);
-    Console.WriteLine("Reseeded.");
+    Seeder.Reseed(db, challenge);
+    Console.WriteLine($"Reseeded ({challenge}).");
     return;
 }
 
@@ -31,15 +35,16 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<VulnDbContext>();
     db.Database.EnsureCreated();
-    Seeder.Seed(db);
+    Seeder.Seed(db, challenge);
 }
 
-// Serve the browser search bar (wwwroot/index.html) so players can inject in the browser,
-// with curl / sqlmap as the harder alternatives against the same /api/search endpoint.
+// Static challenge UIs (wwwroot): the catalogue search (index.html) and the invoices app.
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 // Challenge endpoints
-app.MapSearch();   // Challenge 1 — SQL injection
+app.MapSearch();     // Challenge 1 — SQL injection
+app.MapAuth();       // shared login (identity for authz challenges)
+app.MapInvoices();   // Challenge 2 — IDOR
 
 app.Run();

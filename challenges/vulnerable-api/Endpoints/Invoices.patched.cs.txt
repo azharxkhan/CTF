@@ -1,0 +1,25 @@
+// CHALLENGE 2 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// The fix: authorize per RECORD, not just per route. Being logged in is not enough — the
+// record must belong to the caller.
+
+app.MapGet("/api/invoices/{id:int}", async (int id, HttpContext ctx, VulnDbContext db) =>
+{
+    var uid = Auth.CurrentUserId(ctx);
+    if (uid is null) return Results.Unauthorized();
+
+    var invoice = await db.Invoices.FindAsync(id);
+    if (invoice is null) return Results.NotFound();
+
+    // The one line that fixes it — ownership check:
+    if (invoice.OwnerId != uid) return Results.Forbid();   // 403; someone else's invoice
+
+    return Results.Ok(new { invoice.Id, invoice.OwnerId, invoice.Amount, invoice.Notes });
+});
+
+// Rubric to earn the patch flag:
+//  [ ] The endpoint checks the record belongs to the caller (OwnerId == current user).
+//  [ ] Returns 403/404 for someone else's invoice (don't leak existence details if you prefer 404).
+//  [ ] Authorization is per-record, not just "is the caller logged in".
+//  [ ] The caller can STILL read their own invoices (no over-blocking).
+//  [ ] Tip: prefer filtering in the query — db.Invoices.FirstOrDefault(i => i.Id==id && i.OwnerId==uid)
+//      — so a row that isn't theirs is never even loaded.

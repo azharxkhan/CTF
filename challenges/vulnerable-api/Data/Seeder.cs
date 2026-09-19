@@ -1,33 +1,30 @@
-using Bogus;
-
 namespace VulnApi.Data;
 
-// Deterministic seeder. All data is FAKE (Bogus with a fixed seed). Scored flags are read
-// from environment variables (FLAG_C*), never hardcoded — see .env.example / BUILD.md §6.
+// Deterministic seeder. All data is FAKE, and reproducible (explicit rows, no randomness) so
+// a reset always restores exactly this. Scored flags are read from environment variables
+// (FLAG_C*), never hardcoded — see .env.example / BUILD.md §6.
 public static class Seeder
 {
-    private const int SeedValue = 1337;   // fixed -> a reset reproduces the same data every time
-
-    public static void Seed(VulnDbContext db)
+    // `challenge` selects which flag(s) get planted, so each challenge's OWN database holds
+    // exactly one extractable secret (per-challenge isolation, docs/plan/C-challenges.md).
+    // "c1" -> the C1 flag in the Flags table; "c2" -> the C2 flag in the admin's invoice.
+    public static void Seed(VulnDbContext db, string challenge = "c1")
     {
         if (db.Users.Any()) return;   // already seeded
-        Randomizer.Seed = new Random(SeedValue);
 
-        // --- Users: fake volume + one known admin (Id will be assigned by the DB) ---
-        var userFaker = new Faker<User>()
-            .UseSeed(SeedValue)
-            .RuleFor(u => u.Email, f => f.Internet.Email(provider: "corp.local"))
-            .RuleFor(u => u.DisplayName, f => f.Name.FullName())
-            .RuleFor(u => u.PasswordHash, f => "md5:" + f.Random.Hexadecimal(32, prefix: ""))
-            .RuleFor(u => u.IsAdmin, _ => false);
-
-        var users = userFaker.Generate(8);
+        // --- Users: predictable emails so players can actually log in (user1..user8 + admin) ---
+        var users = new List<User>
+        {
+            new() { Email = "user1@corp.local", DisplayName = "Alex Rivera",  PasswordHash = "md5:5f4dcc3b5aa765d61d8327deb882cf99", IsAdmin = false },
+            new() { Email = "user2@corp.local", DisplayName = "Sam Okafor",   PasswordHash = "md5:e10adc3949ba59abbe56e057f20f883e", IsAdmin = false },
+            new() { Email = "user3@corp.local", DisplayName = "Priya Nair",   PasswordHash = "md5:25d55ad283aa400af464c76d713c07ad", IsAdmin = false },
+            new() { Email = "user4@corp.local", DisplayName = "Jordan Blake", PasswordHash = "md5:d8578edf8458ce06fbc5bb76a58c5ca4", IsAdmin = false },
+            new() { Email = "user5@corp.local", DisplayName = "Wei Zhang",    PasswordHash = "md5:0d107d09f5bbe40cade3de5c71e9e9b7", IsAdmin = false },
+        };
         var admin = new User
         {
-            Email = "admin@corp.local",
-            DisplayName = "Admin",
-            PasswordHash = "md5:21232f297a57a5a743894a0e4a801fc3",
-            IsAdmin = true
+            Email = "admin@corp.local", DisplayName = "Admin",
+            PasswordHash = "md5:21232f297a57a5a743894a0e4a801fc3", IsAdmin = true
         };
         users.Add(admin);
         db.Users.AddRange(users);
@@ -50,18 +47,18 @@ public static class Seeder
         db.Products.AddRange(products);
         db.SaveChanges();
 
-        // --- Invoices (benign notes) ---
-        // NOTE: the challenge-2 (IDOR) flag is deliberately NOT seeded here. Because
-        // challenge-1's SQL injection can `UNION SELECT ... FROM Invoices`, any flag in this
-        // database is extractable by C1 and would leak across challenges. See the
-        // per-challenge-database isolation decision in docs/plan/C-challenges.md. C2 gets its
-        // own isolated database when it's built.
+        // --- Invoices ---
+        // Challenge 2 (IDOR): the admin's invoice holds the C2 flag in its Notes. It's only
+        // planted when this DB is the C2 instance, so it can't leak into another challenge.
         var normal = users.Where(u => !u.IsAdmin).ToList();
+        var adminNotes = challenge == "c2"
+            ? $"CONFIDENTIAL — do not share: {Env("FLAG_C2_IDOR", "flag{missing_env_c2}")}"
+            : "admin: quarterly summary";
         var invoices = new List<Invoice>
         {
             new() { OwnerId = normal[0].Id, Amount = 120.00m, Notes = "Q1 order" },
             new() { OwnerId = normal[1].Id, Amount = 45.50m,  Notes = "replacement parts" },
-            new() { OwnerId = admin.Id,     Amount = 8800.00m, Notes = "admin: quarterly summary" },
+            new() { OwnerId = admin.Id,     Amount = 8800.00m, Notes = adminNotes },
             new() { OwnerId = normal[2].Id, Amount = 15.00m,  Notes = "sample" },
             new() { OwnerId = normal[0].Id, Amount = 210.75m, Notes = "bulk widgets" },
         };
@@ -78,20 +75,20 @@ public static class Seeder
             new Comment { AuthorId = normal[0].Id, Body = "Great product, fast shipping." },
             new Comment { AuthorId = normal[1].Id, Body = "Does this come in blue?" });
 
-        // --- Flags reachable via SQL injection — ONLY challenge 1 lives in this database ---
-        // Challenges 4 and 10 (also SQLi) must use their OWN databases, or C1's UNION would
-        // dump their flags too. This DB therefore contains exactly one extractable secret.
-        db.Flags.Add(
-            new Flag { Name = "search", Secret = Env("FLAG_C1_SQLI", "flag{missing_env_c1}") });
+        // --- Flags table: only the C1 (SQLi) instance stores a secret here ---
+        // Challenges 4 and 10 (also SQLi) will use their OWN databases, or C1's UNION would
+        // dump their flags too. On a non-SQLi instance this table stays empty.
+        if (challenge == "c1")
+            db.Flags.Add(new Flag { Name = "search", Secret = Env("FLAG_C1_SQLI", "flag{missing_env_c1}") });
 
         db.SaveChanges();
     }
 
-    public static void Reseed(VulnDbContext db)
+    public static void Reseed(VulnDbContext db, string challenge = "c1")
     {
         db.Database.EnsureDeleted();
         db.Database.EnsureCreated();
-        Seed(db);
+        Seed(db, challenge);
     }
 
     private static string Env(string key, string fallback) =>
