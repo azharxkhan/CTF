@@ -48,3 +48,9 @@ challenge-data/
 
 # Generated git-secret challenge repo
 challenges/git-secret/repo/
+
+# Generated warm-up artifacts (built from each build.py at deploy)
+challenges/static/W2-encoding-chain/challenge.txt
+challenges/static/W3-weak-hash/hashes.txt
+challenges/static/W4-hidden-file/*.bin
+challenges/static/W4-hidden-file/*.dat
