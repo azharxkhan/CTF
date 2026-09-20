@@ -14,6 +14,22 @@
 	reverse_proxy vuln-c7:8080
 }
 
+:5004 {
+	reverse_proxy vuln-c4:8080
+}
+
+:5005 {
+	reverse_proxy vuln-c5:8080
+}
+
 :5006 {
 	reverse_proxy vuln-c6:8080
+}
+
+:5008 {
+	reverse_proxy vuln-c8:8080
+}
+
+:5009 {
+	reverse_proxy vuln-c9:8080
 }

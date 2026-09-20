@@ -92,6 +92,36 @@ services:
       FLAG_C7_PATHTRAVERSAL: ${FLAG_C7_PATHTRAVERSAL}
     tmpfs: ["/tmp", "/app/challenge-data"]   # C7 writes report + flag files at startup
 
+  vuln-c4:                                   # Challenge 4 — FromSqlRaw interpolation
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c4
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C4;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C4_FROMSQLRAW: ${FLAG_C4_FROMSQLRAW}
+
+  vuln-c5:                                   # Challenge 5 — mass assignment (login user1/hunter2)
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c5
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C5;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C5_MASSASSIGN: ${FLAG_C5_MASSASSIGN}
+
+  vuln-c8:                                   # Challenge 8 — weak JWT signing key
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c8
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C8;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C8_WEAKJWT: ${FLAG_C8_WEAKJWT}
+      JWT_WEAK_KEY: ${JWT_WEAK_KEY}
+
+  vuln-c9:                                   # Challenge 9 — JWT validation switched off
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c9
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C9;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C9_JWTOFF: ${FLAG_C9_JWTOFF}
+      JWT_STRONG_KEY: ${JWT_STRONG_KEY}
+
   vuln-c6:                                   # Challenge 6 — stored XSS (React board at /board/)
     build:
       context: ./challenges                  # needs both vulnerable-web and vulnerable-api
@@ -136,9 +166,13 @@ services:
       - "5001:5001"   # Challenge 1 — SQL injection
       - "5002:5002"   # Challenge 2 — IDOR
       - "5003:5003"   # Challenge 7 — path traversal
+      - "5004:5004"   # Challenge 4 — FromSqlRaw
+      - "5005:5005"   # Challenge 5 — mass assignment
       - "5006:5006"   # Challenge 6 — stored XSS
+      - "5008:5008"   # Challenge 8 — weak JWT key
+      - "5009:5009"   # Challenge 9 — JWT validation off
     networks: [ctf-internal, ctf-edge]
-    depends_on: [vuln-c1, vuln-c2, vuln-c6, vuln-c7]
+    depends_on: [vuln-c1, vuln-c2, vuln-c4, vuln-c5, vuln-c6, vuln-c7, vuln-c8, vuln-c9]
     restart: unless-stopped
 
   # ---------- Challenge 3 — one-shot: seed the git-secret repo into a shared volume ----------
