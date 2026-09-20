@@ -57,3 +57,6 @@ challenges/static/W4-hidden-file/*.dat
 
 # Built React board (Vite output)
 challenges/vulnerable-api/wwwroot/board/
+
+# Generated C12 dashboard (written at startup with the API key)
+challenges/vulnerable-api/wwwroot/dashboard/
