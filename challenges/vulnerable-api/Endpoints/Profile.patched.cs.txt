@@ -1,0 +1,25 @@
+// CHALLENGE 5 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// The fix: bind to a DTO that contains ONLY the fields a user may change. Never bind the
+// request body to the EF entity, and map allowed fields explicitly.
+
+public record UpdateProfileDto(string DisplayName, string Email);   // no IsAdmin here
+
+app.MapPut("/api/profile", async (UpdateProfileDto dto, HttpContext ctx, VulnDbContext db) =>
+{
+    var uid = Auth.CurrentUserId(ctx);
+    if (uid is null) return Results.Unauthorized();
+    var u = await db.Users.FindAsync(uid);
+    if (u is null) return Results.NotFound();
+
+    // Map only the allowed fields. IsAdmin is never touched by user input.
+    u.DisplayName = dto.DisplayName;
+    u.Email = dto.Email;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { u.Id, u.Email, u.DisplayName, u.IsAdmin });
+});
+
+// Rubric to earn the patch flag:
+//  [ ] Binds to a DTO with only user-editable fields (not the User entity).
+//  [ ] IsAdmin (and any other privileged field) cannot be set from the request body.
+//  [ ] Posting "isAdmin": true no longer escalates; normal display-name updates still work.
+//  [ ] Understands why binding to the entity is the vulnerability.

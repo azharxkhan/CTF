@@ -75,11 +75,12 @@ public static class Seeder
             new Comment { AuthorId = normal[0].Id, Body = "Great product, fast shipping." },
             new Comment { AuthorId = normal[1].Id, Body = "Does this come in blue?" });
 
-        // --- Flags table: only the C1 (SQLi) instance stores a secret here ---
-        // Challenges 4 and 10 (also SQLi) will use their OWN databases, or C1's UNION would
-        // dump their flags too. On a non-SQLi instance this table stays empty.
+        // --- Flags table: only the SQL-injection instances store a secret here ---
+        // Each SQLi challenge uses its OWN database, so its UNION can't reach another's flag.
         if (challenge == "c1")
             db.Flags.Add(new Flag { Name = "search", Secret = Env("FLAG_C1_SQLI", "flag{missing_env_c1}") });
+        if (challenge == "c4")
+            db.Flags.Add(new Flag { Name = "orders_ref", Secret = Env("FLAG_C4_FROMSQLRAW", "flag{missing_env_c4}") });
 
         db.SaveChanges();
     }

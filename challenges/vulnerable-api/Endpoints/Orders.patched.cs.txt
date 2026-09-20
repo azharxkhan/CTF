@@ -1,0 +1,22 @@
+// CHALLENGE 4 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// The fix: use a method that PARAMETERIZES the interpolation. FromSqlRaw treats the string
+// as literal SQL; FromSql / FromSqlInterpolated turn {r} into a DbParameter.
+
+// --- Option A: FromSql (EF Core 7+) — note it's FromSql, NOT FromSqlRaw ---
+var orders = db.Orders
+    .FromSql($"SELECT * FROM Orders WHERE Ref = {r}")   // {r} becomes a parameter
+    .ToList();
+
+// --- Option B: FromSqlInterpolated (same effect, explicit name) ---
+var orders = db.Orders
+    .FromSqlInterpolated($"SELECT * FROM Orders WHERE Ref = {r}")
+    .ToList();
+
+// --- Option C: plain LINQ — parameterized automatically, no raw SQL at all ---
+var orders = db.Orders.Where(o => o.Ref == r).ToList();
+
+// Rubric to earn the patch flag:
+//  [ ] No FromSqlRaw($"...") with interpolated user input.
+//  [ ] Uses FromSql / FromSqlInterpolated / LINQ so the value is a parameter.
+//  [ ] ' OR 1=1 -- and the UNION payload return nothing unexpected; a real ref still works.
+//  [ ] Understands FromSqlRaw != FromSql — same-looking code, opposite safety.

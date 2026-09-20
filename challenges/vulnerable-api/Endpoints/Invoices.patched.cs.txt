@@ -11,7 +11,9 @@ app.MapGet("/api/invoices/{id:int}", async (int id, HttpContext ctx, VulnDbConte
     if (invoice is null) return Results.NotFound();
 
     // The one line that fixes it — ownership check:
-    if (invoice.OwnerId != uid) return Results.Forbid();   // 403; someone else's invoice
+    if (invoice.OwnerId != uid) return Results.StatusCode(403);   // someone else's invoice
+    // (this app registers no ASP.NET auth scheme, so use StatusCode(403); Results.Forbid()
+    //  would 500 without a scheme. Returning 404 to hide existence is also fine.)
 
     return Results.Ok(new { invoice.Id, invoice.OwnerId, invoice.Amount, invoice.Notes });
 });

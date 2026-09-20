@@ -55,5 +55,7 @@ app.MapAuth();       // shared login (identity for authz challenges)
 app.MapInvoices();   // Challenge 2 — IDOR
 app.MapReports();    // Challenge 7 — path traversal
 app.MapComments(Environment.GetEnvironmentVariable("FLAG_C6_XSS") ?? "flag{missing_env_c6}");  // Challenge 6 — stored XSS
+app.MapOrders();     // Challenge 4 — FromSqlRaw interpolation
+app.MapProfile(Environment.GetEnvironmentVariable("FLAG_C5_MASSASSIGN") ?? "flag{missing_env_c5}");  // Challenge 5 — mass assignment
 
 app.Run();
