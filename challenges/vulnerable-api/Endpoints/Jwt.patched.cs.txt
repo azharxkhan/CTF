@@ -1,0 +1,31 @@
+// CHALLENGES 8 & 9 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+
+// ---------- C8 fix: use a real signing key, from config, never hardcoded/guessable ----------
+// A 256-bit random value (32+ random bytes). Generate once, store in config/secrets, rotate
+// the leaked one. Even better: move to asymmetric RS256 so the API holds only the public key.
+var key = builder.Configuration["Jwt:Key"]!;   // a real random 256-bit secret, from config
+options.TokenValidationParameters = new TokenValidationParameters
+{
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+    ValidateIssuer = true,  ValidIssuer = "acme-api",
+    ValidateAudience = true, ValidAudience = "acme-clients",
+    ValidateLifetime = true, RequireExpirationTime = true,
+    ClockSkew = TimeSpan.FromMinutes(1),
+};
+
+// ---------- C9 fix: turn the validations back ON and pin issuer/audience ----------
+// The defaults are secure. The bug was disabling them to silence an error. With
+// ValidateIssuer/Audience/Lifetime = true and ValidIssuer/ValidAudience pinned, the
+// "partner" token (issuer=legacy-hr, audience=hr-system) is rejected.
+// See the same TokenValidationParameters block above — every Validate* is true.
+
+// Red herring: alg:none. ASP.NET Core's JwtBearer rejects it by default; you do NOT need to
+// (and must not) add code to allow it. Knowing it doesn't apply here is part of the exercise.
+
+// Rubric to earn the patch flag:
+//  C8: [ ] signing key is a real 256-bit random value from config (or RS256); not guessable.
+//      [ ] a token forged with the old weak key no longer validates.
+//  C9: [ ] ValidateIssuer/Audience/Lifetime all true, ValidIssuer/ValidAudience pinned.
+//      [ ] the partner/legacy token (wrong issuer/audience) is rejected (401), user flow still works.
+//  Both: [ ] understands the defaults were secure; the fix is not disabling them.

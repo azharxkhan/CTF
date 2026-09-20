@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace VulnApi.Data;
 
 // Deterministic seeder. All data is FAKE, and reproducible (explicit rows, no randomness) so
@@ -12,19 +15,24 @@ public static class Seeder
     {
         if (db.Users.Any()) return;   // already seeded
 
-        // --- Users: predictable emails so players can actually log in (user1..user8 + admin) ---
+        // --- Users: predictable emails, all normal users share the password "hunter2" so
+        // players can log in. The admin's password is a random value players do NOT know, so
+        // they can't just log in as admin — challenges 5 (over-post) and 8 (forge token) are
+        // the intended ways to get admin. ---
+        const string userPassword = "hunter2";
         var users = new List<User>
         {
-            new() { Email = "user1@corp.local", DisplayName = "Alex Rivera",  PasswordHash = "md5:5f4dcc3b5aa765d61d8327deb882cf99", IsAdmin = false },
-            new() { Email = "user2@corp.local", DisplayName = "Sam Okafor",   PasswordHash = "md5:e10adc3949ba59abbe56e057f20f883e", IsAdmin = false },
-            new() { Email = "user3@corp.local", DisplayName = "Priya Nair",   PasswordHash = "md5:25d55ad283aa400af464c76d713c07ad", IsAdmin = false },
-            new() { Email = "user4@corp.local", DisplayName = "Jordan Blake", PasswordHash = "md5:d8578edf8458ce06fbc5bb76a58c5ca4", IsAdmin = false },
-            new() { Email = "user5@corp.local", DisplayName = "Wei Zhang",    PasswordHash = "md5:0d107d09f5bbe40cade3de5c71e9e9b7", IsAdmin = false },
+            new() { Email = "user1@corp.local", DisplayName = "Alex Rivera",  PasswordHash = Md5(userPassword), IsAdmin = false },
+            new() { Email = "user2@corp.local", DisplayName = "Sam Okafor",   PasswordHash = Md5(userPassword), IsAdmin = false },
+            new() { Email = "user3@corp.local", DisplayName = "Priya Nair",   PasswordHash = Md5(userPassword), IsAdmin = false },
+            new() { Email = "user4@corp.local", DisplayName = "Jordan Blake", PasswordHash = Md5(userPassword), IsAdmin = false },
+            new() { Email = "user5@corp.local", DisplayName = "Wei Zhang",    PasswordHash = Md5(userPassword), IsAdmin = false },
         };
         var admin = new User
         {
             Email = "admin@corp.local", DisplayName = "Admin",
-            PasswordHash = "md5:21232f297a57a5a743894a0e4a801fc3", IsAdmin = true
+            PasswordHash = Md5(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),  // unknown to players
+            IsAdmin = true
         };
         users.Add(admin);
         db.Users.AddRange(users);
@@ -94,4 +102,9 @@ public static class Seeder
 
     private static string Env(string key, string fallback) =>
         Environment.GetEnvironmentVariable(key) is { Length: > 0 } v ? v : fallback;
+
+    // Simple (deliberately weak) password hashing so login can verify credentials. Real apps
+    // should use a slow salted hash (bcrypt/argon2); MD5 is fine for a throwaway lab account.
+    public static string Md5(string s) =>
+        "md5:" + Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(s))).ToLowerInvariant();
 }

@@ -7,17 +7,21 @@ using VulnApi.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Which challenge's data this instance holds (per-challenge DB isolation). Each challenge
+// runs against its own database (Vuln_C1, Vuln_C2, …) so a flag can't leak across them.
+var challenge = Environment.GetEnvironmentVariable("CTF_CHALLENGE") ?? "c1";
+
 var conn = builder.Configuration.GetConnectionString("Default")
            ?? Environment.GetEnvironmentVariable("ConnectionStrings__Default")
            ?? "Server=vuln-db;Database=Vuln;User Id=sa;Password=Change-Me-Strong-1;TrustServerCertificate=true";
 
 builder.Services.AddDbContext<VulnDbContext>(o => o.UseSqlServer(conn));
 
-var app = builder.Build();
+// Challenges 8 & 9 register JWT bearer auth (configured insecurely per challenge).
+if (challenge is "c8" or "c9")
+    JwtChallenge.AddAuth(builder, challenge);
 
-// Which challenge's data this instance holds (per-challenge DB isolation). Each challenge
-// runs against its own database (Vuln_C1, Vuln_C2, …) so a flag can't leak across them.
-var challenge = Environment.GetEnvironmentVariable("CTF_CHALLENGE") ?? "c1";
+var app = builder.Build();
 
 // Challenge 7 (path traversal) is file-based: lay down report files + a secret flag file.
 if (challenge == "c7")
@@ -48,6 +52,14 @@ using (var scope = app.Services.CreateScope())
 // Static challenge UIs (wwwroot): the catalogue search (index.html) and the invoices app.
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+if (challenge is "c8" or "c9")
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapJwt(challenge, Environment.GetEnvironmentVariable(challenge == "c8" ? "FLAG_C8_WEAKJWT" : "FLAG_C9_JWTOFF")
+        ?? $"flag{{missing_env_{challenge}}}");
+}
 
 // Challenge endpoints
 app.MapSearch();     // Challenge 1 — SQL injection

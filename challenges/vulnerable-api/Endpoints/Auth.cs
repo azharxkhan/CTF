@@ -19,12 +19,16 @@ public static class Auth
         app.MapPost("/api/login", async (LoginDto dto, VulnDbContext db) =>
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-            if (user is null) return Results.Unauthorized();
+            if (user is null || !CheckPassword(user, dto.Password)) return Results.Unauthorized();
             var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
             Tokens[token] = user.Id;
             return Results.Ok(new { token, userId = user.Id, displayName = user.DisplayName });
         });
     }
+
+    // Verify a plaintext password against the stored hash (shared by both login endpoints).
+    public static bool CheckPassword(User user, string? password) =>
+        !string.IsNullOrEmpty(password) && Data.Seeder.Md5(password) == user.PasswordHash;
 
     // Resolve the caller's user id from the Authorization: Bearer <token> header.
     public static int? CurrentUserId(HttpContext ctx)
