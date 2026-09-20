@@ -15,7 +15,21 @@ var conn = builder.Configuration.GetConnectionString("Default")
            ?? Environment.GetEnvironmentVariable("ConnectionStrings__Default")
            ?? "Server=vuln-db;Database=Vuln;User Id=sa;Password=Change-Me-Strong-1;TrustServerCertificate=true";
 
-builder.Services.AddDbContext<VulnDbContext>(o => o.UseSqlServer(conn));
+// DB_PROVIDER=sqlite makes an instance fully self-contained (a local file), so C11's
+// per-player containers need no shared SQL Server. Default is SQL Server.
+var provider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "sqlserver";
+builder.Services.AddDbContext<VulnDbContext>(o =>
+{
+    if (provider == "sqlite")
+    {
+        var path = Environment.GetEnvironmentVariable("SQLITE_PATH");
+        o.UseSqlite($"Data Source={(string.IsNullOrEmpty(path) ? "/tmp/vuln.db" : path)}");
+    }
+    else
+    {
+        o.UseSqlServer(conn);
+    }
+});
 
 // Challenges 8 & 9 register JWT bearer auth (configured insecurely per challenge).
 if (challenge is "c8" or "c9")

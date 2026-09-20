@@ -1,0 +1,17 @@
+# Per-player image for Challenge 11 (race condition), for the CTFd docker-challenge plugin.
+# Self-contained on SQLite (no shared DB), so each player gets a throwaway container whose
+# corrupted state affects no one else. Build from the base vuln-api image; the flag is passed
+# as a build arg from .env (kept out of the source and the base image).
+#
+#   docker build -t ctf/vuln-api:latest ./challenges/vulnerable-api        # base first
+#   docker build -t ctf/vuln-c11:latest --build-arg FLAG_C11_RACE="$FLAG_C11_RACE" \
+#     -f challenges/vulnerable-api/Dockerfile.c11 challenges/vulnerable-api
+ARG FLAG_C11_RACE=flag{missing_env_c11}
+FROM ctf/vuln-api:latest
+ARG FLAG_C11_RACE
+ENV CTF_CHALLENGE=c11 \
+    DB_PROVIDER=sqlite \
+    SQLITE_PATH=/tmp/c11.db \
+    FLAG_C11_RACE=$FLAG_C11_RACE \
+    ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080

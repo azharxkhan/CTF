@@ -22,6 +22,8 @@ x-vuln-api: &vuln-api
   depends_on:
     vuln-db:
       condition: service_healthy
+    db-init:
+      condition: service_completed_successfully
   restart: unless-stopped
 
 services:
@@ -33,6 +35,10 @@ services:
       DATABASE_URL: mysql+pymysql://ctfd:${CTFD_DB_PASSWORD}@ctfd-db/ctfd
     volumes:
       - ./ctfd/plugins:/opt/CTFd/CTFd/plugins/custom:ro
+      # For the docker-challenge plugin (C11 per-player containers). Mounting the socket gives
+      # CTFd control of the Docker host — keep CTFd patched and access-controlled. Omit this
+      # (and the plugin) if you use the shared vuln-c11 instance instead.
+      - /var/run/docker.sock:/var/run/docker.sock
     ports: ["8000:8000"]      # organizer/player-laptop access to the scoreboard
     networks: [ctf-internal, ctf-edge]
     depends_on: [ctfd-db]
@@ -50,6 +56,22 @@ services:
     restart: unless-stopped
 
   # ---------- Shared database for the vulnerable APIs ----------
+  # One-shot: create per-challenge databases + LEAST-PRIVILEGE logins (blocks cross-DB
+  # cheating via SQL injection). Apps wait for this to finish.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    entrypoint: ["/bin/bash", "/init/init.sh"]
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+    volumes:
+      - ./db/init.sh:/init/init.sh:ro
+    depends_on:
+      vuln-db:
+        condition: service_healthy
+    networks: [ctf-internal]
+    restart: "no"
+
   vuln-db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -74,21 +96,21 @@ services:
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c1
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C1;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C1;User Id=c1_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C1_SQLI: ${FLAG_C1_SQLI}
 
   vuln-c2:                                   # Challenge 2 — IDOR (UI at /invoices.html)
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c2
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C2;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C2;User Id=c2_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C2_IDOR: ${FLAG_C2_IDOR}
 
   vuln-c7:                                   # Challenge 7 — path traversal (UI at /reports.html)
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c7
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C7;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C7;User Id=c7_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C7_PATHTRAVERSAL: ${FLAG_C7_PATHTRAVERSAL}
     tmpfs: ["/tmp", "/app/challenge-data"]   # C7 writes report + flag files at startup
 
@@ -96,21 +118,21 @@ services:
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c4
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C4;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C4;User Id=c4_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C4_FROMSQLRAW: ${FLAG_C4_FROMSQLRAW}
 
   vuln-c5:                                   # Challenge 5 — mass assignment (login user1/hunter2)
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c5
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C5;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C5;User Id=c5_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C5_MASSASSIGN: ${FLAG_C5_MASSASSIGN}
 
   vuln-c8:                                   # Challenge 8 — weak JWT signing key
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c8
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C8;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C8;User Id=c8_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C8_WEAKJWT: ${FLAG_C8_WEAKJWT}
       JWT_WEAK_KEY: ${JWT_WEAK_KEY}
 
@@ -118,7 +140,7 @@ services:
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c9
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C9;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C9;User Id=c9_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C9_JWTOFF: ${FLAG_C9_JWTOFF}
       JWT_STRONG_KEY: ${JWT_STRONG_KEY}
 
@@ -126,23 +148,26 @@ services:
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c10
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C10;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C10;User Id=c10_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C10_BLINDSQLI: ${FLAG_C10_BLINDSQLI}
 
-  vuln-c11:                                  # Challenge 11 — race condition
-    # Ideally per-player (CTFd docker-challenge plugin) since one exploit corrupts shared
-    # state; this single instance works for demo/small groups. Reset with --reseed.
+  vuln-c11:                                  # Challenge 11 — race condition (self-contained SQLite)
+    # Self-contained on SQLite so it can ALSO run as an ephemeral per-player container via the
+    # CTFd docker-challenge plugin (see ctfd/plugins/README.md). This shared instance is the
+    # demo / small-group fallback; restart it (fresh /tmp DB) or --reseed to reset.
     <<: *vuln-api
+    depends_on: {}                           # SQLite: needs neither vuln-db nor db-init
     environment:
       CTF_CHALLENGE: c11
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C11;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      DB_PROVIDER: sqlite
+      SQLITE_PATH: /tmp/c11.db
       FLAG_C11_RACE: ${FLAG_C11_RACE}
 
   vuln-c12:                                  # Challenge 12 — API key in JS bundle (dashboard at /dashboard/)
     <<: *vuln-api
     environment:
       CTF_CHALLENGE: c12
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C12;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C12;User Id=c12_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C12_BUNDLEKEY: ${FLAG_C12_BUNDLEKEY}
       C12_ADMIN_KEY: ${C12_ADMIN_KEY}
     tmpfs: ["/tmp", "/app/wwwroot/dashboard"]   # dashboard app.js is written at startup
@@ -157,7 +182,7 @@ services:
     tmpfs: ["/tmp"]
     environment:
       CTF_CHALLENGE: c6
-      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C6;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C6;User Id=c6_app;Password=${DB_APP_PASSWORD};TrustServerCertificate=true"
       FLAG_C6_XSS: ${FLAG_C6_XSS}
     deploy:
       resources:
@@ -166,6 +191,8 @@ services:
     depends_on:
       vuln-db:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   c6-admin-bot:                              # reviews the board so XSS payloads fire
