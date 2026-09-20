@@ -1,0 +1,17 @@
+// CHALLENGE 10 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// The fix is the same as any injection: parameterize. No visible output does not make it
+// safe — a timing side-channel still leaks everything.
+
+var sql = "SELECT Id FROM Orders WHERE Ref = @ref";
+using var conn = new SqlConnection(cs);
+conn.Open();
+using var cmd = new SqlCommand(sql, conn);
+cmd.Parameters.AddWithValue("@ref", r);   // @ref is data; an injected WAITFOR is just text
+cmd.ExecuteNonQuery();
+return Results.Ok(new { status = "checked" });
+
+// Rubric to earn the patch flag:
+//  [ ] Parameterized query (or LINQ) — no concatenation.
+//  [ ] The WAITFOR payload no longer changes the response time.
+//  [ ] Legitimate ref checks still work.
+//  [ ] Understands blind injection: an oracle (timing, boolean, error) is enough to exfiltrate.

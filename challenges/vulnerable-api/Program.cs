@@ -30,6 +30,13 @@ if (challenge == "c7")
     ReportsEndpoint.EnsureData(app.Environment, c7flag);
 }
 
+// Challenge 12 (API key in JS bundle): write the dashboard with the admin key baked in.
+if (challenge == "c12")
+{
+    var adminKey = Environment.GetEnvironmentVariable("C12_ADMIN_KEY") ?? "ak_live_5Xf2Qb8Kd3Np7Rt9Vw1Yz";
+    BundleKeyEndpoint.EnsureFrontend(app.Environment, adminKey);
+}
+
 // `dotnet run -- --reseed` drops, recreates, and reseeds, then exits. Used by the hourly
 // reset / operator restore (docs/operator/command-reference.md).
 if (args.Contains("--reseed"))
@@ -69,5 +76,10 @@ app.MapReports();    // Challenge 7 — path traversal
 app.MapComments(Environment.GetEnvironmentVariable("FLAG_C6_XSS") ?? "flag{missing_env_c6}");  // Challenge 6 — stored XSS
 app.MapOrders();     // Challenge 4 — FromSqlRaw interpolation
 app.MapProfile(Environment.GetEnvironmentVariable("FLAG_C5_MASSASSIGN") ?? "flag{missing_env_c5}");  // Challenge 5 — mass assignment
+app.MapStatus();     // Challenge 10 — blind SQL injection
+app.MapAllocate(Environment.GetEnvironmentVariable("FLAG_C11_RACE") ?? "flag{missing_env_c11}");     // Challenge 11 — race condition
+app.MapBundleKey(   // Challenge 12 — API key in JS bundle
+    Environment.GetEnvironmentVariable("C12_ADMIN_KEY") ?? "ak_live_5Xf2Qb8Kd3Np7Rt9Vw1Yz",
+    Environment.GetEnvironmentVariable("FLAG_C12_BUNDLEKEY") ?? "flag{missing_env_c12}");
 
 app.Run();

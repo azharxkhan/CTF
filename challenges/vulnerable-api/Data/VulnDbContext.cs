@@ -11,6 +11,7 @@ public class VulnDbContext : DbContext
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<Allocation> Allocations => Set<Allocation>();
     public DbSet<Flag> Flags => Set<Flag>();
 
     protected override void OnModelCreating(ModelBuilder b)

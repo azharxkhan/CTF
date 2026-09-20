@@ -122,6 +122,31 @@ services:
       FLAG_C9_JWTOFF: ${FLAG_C9_JWTOFF}
       JWT_STRONG_KEY: ${JWT_STRONG_KEY}
 
+  vuln-c10:                                  # Challenge 10 — blind SQL injection
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c10
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C10;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C10_BLINDSQLI: ${FLAG_C10_BLINDSQLI}
+
+  vuln-c11:                                  # Challenge 11 — race condition
+    # Ideally per-player (CTFd docker-challenge plugin) since one exploit corrupts shared
+    # state; this single instance works for demo/small groups. Reset with --reseed.
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c11
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C11;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C11_RACE: ${FLAG_C11_RACE}
+
+  vuln-c12:                                  # Challenge 12 — API key in JS bundle (dashboard at /dashboard/)
+    <<: *vuln-api
+    environment:
+      CTF_CHALLENGE: c12
+      ConnectionStrings__Default: "Server=vuln-db;Database=Vuln_C12;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      FLAG_C12_BUNDLEKEY: ${FLAG_C12_BUNDLEKEY}
+      C12_ADMIN_KEY: ${C12_ADMIN_KEY}
+    tmpfs: ["/tmp", "/app/wwwroot/dashboard"]   # dashboard app.js is written at startup
+
   vuln-c6:                                   # Challenge 6 — stored XSS (React board at /board/)
     build:
       context: ./challenges                  # needs both vulnerable-web and vulnerable-api
@@ -171,8 +196,11 @@ services:
       - "5006:5006"   # Challenge 6 — stored XSS
       - "5008:5008"   # Challenge 8 — weak JWT key
       - "5009:5009"   # Challenge 9 — JWT validation off
+      - "5010:5010"   # Challenge 10 — blind SQL injection
+      - "5011:5011"   # Challenge 11 — race condition
+      - "5012:5012"   # Challenge 12 — API key in JS bundle
     networks: [ctf-internal, ctf-edge]
-    depends_on: [vuln-c1, vuln-c2, vuln-c4, vuln-c5, vuln-c6, vuln-c7, vuln-c8, vuln-c9]
+    depends_on: [vuln-c1, vuln-c2, vuln-c4, vuln-c5, vuln-c6, vuln-c7, vuln-c8, vuln-c9, vuln-c10, vuln-c11, vuln-c12]
     restart: unless-stopped
 
   # ---------- Challenge 3 — one-shot: seed the git-secret repo into a shared volume ----------

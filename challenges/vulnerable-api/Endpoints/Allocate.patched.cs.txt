@@ -1,0 +1,27 @@
+// CHALLENGE 11 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// The fix: make the read-check-write atomic. Two good options.
+
+// --- Option A: a transaction with serializable isolation around the whole check-then-write ---
+using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+var taken = await db.Allocations.CountAsync();
+if (taken >= Limit) { await tx.RollbackAsync(); return Results.Ok(new { ok = false }); }
+db.Allocations.Add(new Allocation { Ref = ... });
+await db.SaveChangesAsync();
+await tx.CommitAsync();   // concurrent callers serialize; the limit holds
+
+// --- Option B: an optimistic-concurrency token on a stock row ([Timestamp] RowVersion) ---
+// Decrement a Stock row guarded by RowVersion; a stale write throws DbUpdateConcurrencyException
+// and is retried/rejected, so two racers can't both succeed from the same read.
+// public byte[] RowVersion { get; set; }   // [Timestamp] on the stock entity
+
+// --- Also correct: push the check into the DB (atomic UPDATE ... WHERE stock > 0), or a
+//     UNIQUE constraint that makes the (Limit+1)th insert fail.
+
+// !! NOLOCK is the WRONG instinct here. NOLOCK = READ UNCOMMITTED = dirty reads, which makes
+//    this class of bug WORSE. The fix is MORE locking / proper isolation, not less.
+
+// Rubric to earn the patch flag:
+//  [ ] Read-check-write is atomic (transaction+isolation, concurrency token, or atomic UPDATE).
+//  [ ] Firing many concurrent requests can no longer exceed Limit.
+//  [ ] Legitimate single allocations still work.
+//  [ ] Did NOT reach for NOLOCK.

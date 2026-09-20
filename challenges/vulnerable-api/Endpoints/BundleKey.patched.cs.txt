@@ -1,0 +1,22 @@
+// CHALLENGE 12 — SECURE reference (reviewer's answer key). NOT compiled into the app.
+// Core truth: anything shipped to the browser is public. You cannot hide a secret in JS.
+
+// 1) Do NOT put privileged keys in client code. The browser should hold, at most, a token
+//    scoped to exactly what that user may do — never an admin/platform key.
+//
+// 2) Proxy privileged actions through your own backend, authenticated as the user:
+//    // client: fetch('/api/inventory')   // no key in JS; uses the user's session cookie
+//    // server: verifies the session, then calls the downstream service with a key that
+//    //         lives ONLY on the server (config/secrets), never sent to the browser.
+//
+// 3) Scope any client-visible key to the minimum (read-only, single resource) so leaking it
+//    is low-impact — and it must NOT also unlock /api/admin/export.
+//
+// 4) Rotate the leaked key immediately; it is compromised the moment it ships in a bundle.
+
+// Rubric to earn the patch flag:
+//  [ ] No privileged/admin key present in any client-served asset.
+//  [ ] Privileged calls go through the backend authenticated as the user (session), not a
+//      shared client key; or the client key is minimally scoped and cannot reach admin routes.
+//  [ ] States the leaked key must be rotated.
+//  [ ] Understands: client-side = public; obfuscation is not a fix.

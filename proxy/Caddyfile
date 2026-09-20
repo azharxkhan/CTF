@@ -33,3 +33,15 @@
 :5009 {
 	reverse_proxy vuln-c9:8080
 }
+
+:5010 {
+	reverse_proxy vuln-c10:8080
+}
+
+:5011 {
+	reverse_proxy vuln-c11:8080
+}
+
+:5012 {
+	reverse_proxy vuln-c12:8080
+}

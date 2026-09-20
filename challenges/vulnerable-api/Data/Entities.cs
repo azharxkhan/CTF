@@ -48,6 +48,14 @@ public class Comment
     public string Body { get; set; } = "";            // challenge 6 (stored XSS) — rendered raw in the web app
 }
 
+// Challenge 11 (race condition): each successful allocation of the limited item is one row.
+// Inserts never overwrite each other, so counting them reliably reveals an over-allocation.
+public class Allocation
+{
+    public int Id { get; set; }
+    public string Ref { get; set; } = "";
+}
+
 // Holds the scored flags reachable via SQL (challenges 1, 4, 10). Values come from
 // environment variables at seed time — never hardcoded, never baked into the image.
 public class Flag

@@ -89,6 +89,8 @@ public static class Seeder
             db.Flags.Add(new Flag { Name = "search", Secret = Env("FLAG_C1_SQLI", "flag{missing_env_c1}") });
         if (challenge == "c4")
             db.Flags.Add(new Flag { Name = "orders_ref", Secret = Env("FLAG_C4_FROMSQLRAW", "flag{missing_env_c4}") });
+        if (challenge == "c10")
+            db.Flags.Add(new Flag { Name = "status", Secret = Env("FLAG_C10_BLINDSQLI", "flag{missing_env_c10}") });
 
         db.SaveChanges();
     }
