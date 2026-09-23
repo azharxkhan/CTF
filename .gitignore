@@ -67,3 +67,6 @@ review/queue.jsonl
 # ...but DO track the player write-ups (exception to *.md above)
 !writeups/
 !writeups/*.md
+
+# ...and track the top-level README (landing page)
+!README.md
