@@ -63,3 +63,7 @@ challenges/vulnerable-api/wwwroot/dashboard/
 
 # Review queue (runtime submissions)
 review/queue.jsonl
+
+# ...but DO track the player write-ups (exception to *.md above)
+!writeups/
+!writeups/*.md
