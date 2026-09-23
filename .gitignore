@@ -60,3 +60,6 @@ challenges/vulnerable-api/wwwroot/board/
 
 # Generated C12 dashboard (written at startup with the API key)
 challenges/vulnerable-api/wwwroot/dashboard/
+
+# Review queue (runtime submissions)
+review/queue.jsonl

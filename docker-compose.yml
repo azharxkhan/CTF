@@ -226,8 +226,9 @@ services:
       - "5010:5010"   # Challenge 10 — blind SQL injection
       - "5011:5011"   # Challenge 11 — race condition
       - "5012:5012"   # Challenge 12 — API key in JS bundle
+      - "5099:5099"   # Review service (submit solves / patches)
     networks: [ctf-internal, ctf-edge]
-    depends_on: [vuln-c1, vuln-c2, vuln-c4, vuln-c5, vuln-c6, vuln-c7, vuln-c8, vuln-c9, vuln-c10, vuln-c11, vuln-c12]
+    depends_on: [vuln-c1, vuln-c2, vuln-c4, vuln-c5, vuln-c6, vuln-c7, vuln-c8, vuln-c9, vuln-c10, vuln-c11, vuln-c12, review]
     restart: unless-stopped
 
   # ---------- Challenge 3 — one-shot: seed the git-secret repo into a shared volume ----------
@@ -258,6 +259,18 @@ services:
     restart: unless-stopped
   # W2/W3/W4 are static artifacts: build with each build.py and hand the files to players on
   # the player host (see docs/operator/DEPLOY.md). No service needed.
+
+  # ---------- Patch / explain-your-solve review service ----------
+  review:
+    build: ./review
+    image: ctf/review:latest
+    environment:
+      REVIEW_QUEUE: /data/queue.jsonl
+    volumes:
+      - review-data:/data
+    networks: [ctf-internal]
+    restart: unless-stopped
+    # Reviewer reads the queue with: docker compose exec review python3 review.py list|show|grade
 
   # ---------- Browser gateway to the player host ----------
   guacd:
@@ -299,3 +312,4 @@ volumes:
   ctfd-db-data:
   guac-db-data:
   c3-repo:
+  review-data:

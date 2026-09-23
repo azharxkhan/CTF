@@ -45,3 +45,7 @@
 :5012 {
 	reverse_proxy vuln-c12:8080
 }
+
+:5099 {
+	reverse_proxy review:8080
+}
