@@ -69,4 +69,4 @@ review/queue.jsonl
 !writeups/*.md
 
 # ...and track the top-level README (landing page)
-!README.md
+!/README.md
